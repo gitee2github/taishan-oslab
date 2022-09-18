@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+
+if ! [ -f /home/git/.ssh/id_rsa ]; then
+  if [ -z "$1" ]; then
+    echo "No token provided, aborting!"
+    exit 1
+  fi
+  TOKEN="$1"
+
+  (echo "$TOKEN"; echo "$TOKEN") | passwd git
+  sudo -u git ssh-keygen -P '' -f /home/git/.ssh/id_rsa
+
+  CODE_DIR=/home/git/.config/code-server
+  CODE_CONFIG=$CODE_DIR/config.yaml
+
+  sudo -u git mkdir -p $CODE_DIR
+  sudo -u git touch $CODE_CONFIG
+  cat <<EOF >$CODE_CONFIG
+bind-addr: 0.0.0.0:10080
+auth: password
+password: $TOKEN
+cert: false
+EOF
+fi
+
+sudo -u git bash -c code-server &
+/usr/sbin/sshd -eD

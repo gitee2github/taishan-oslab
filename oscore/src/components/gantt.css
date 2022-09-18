@@ -1,0 +1,43 @@
+.marker-full {
+  background-color: #002f00;
+  opacity: 0.2
+}
+.marker-pass {
+  background-color: #24b75b;
+  opacity: 0.2;
+}
+.marker-fail {
+  background-color: #ef0000;
+  opacity: 0.2;
+}
+.task-passed {
+  background-color: #6ec78d;
+  border: none;
+}
+.task-passed .gantt_task_progress {
+  background-color: #19ba56;
+}
+.task-full {
+  background-color: #6ec78d;
+  border: none;
+}
+.task-full .gantt_task_progress {
+  background-color: #088731;
+}
+.task-unpassed {
+  background-color: #f8cf77;
+  border: none;
+}
+.task-unpassed .gantt_task_progress {
+  background-color: #efa300;
+}
+.task-fail {
+  background-color: #de4545;
+  border: none;
+}
+.task-fail .gantt_task_progress {
+  background-color: #de4545;
+}
+.gantt_task_line {
+  z-index: 2;
+}

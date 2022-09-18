@@ -1,0 +1,82 @@
+#!/bin/bash
+
+set -e
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 STUDENT_ID STUDENT_NAME [TOKEN]"
+	echo " e.g.: $0 19060001 张三"
+	exit 1
+fi
+
+here=$(dirname "$(realpath "$0")")
+cd "$here"
+. ./settings
+
+student_id="$1"
+student_name="$2"
+token="$3"
+
+student_id="${student_id//[[:blank:]]/}"
+student_name="${student_name//[[:blank:]]/}"
+
+if ! ssh_port="$(cat data/ssh_port)"; then
+  ssh_port=$FIRST_SSH_PORT
+fi
+
+if ! code_port="$(cat data/code_port)"; then
+  code_port=$FIRST_CODE_PORT
+fi
+
+if [ -z "$token" ]; then
+  token="$(openssl rand -base64 12)"
+else
+  token="${token//[[:blank:]]/}"
+fi
+
+if [ -z "$student_name" ]; then
+  student_name="$student_id"
+fi
+
+echo "$token $ssh_port $code_port"
+
+mkdir -p "data/share/$student_id"
+chmod 777 "data/share/$student_id"
+create-student-docker "$student_id" "$ssh_port" "$code_port" "$token" "$student_name"
+
+echo $((ssh_port + 1)) >data/ssh_port
+echo $((code_port + 1)) >data/code_port
+echo "$student_id $ssh_port $code_port $token $student_name" >>data/students
+
+container="$CONTAINER_PREFIX$student_id"
+pub_key="$(docker exec "$container" cat /home/git/.ssh/id_rsa.pub)"
+
+python3 create-student-repository.py "$student_id" "$student_name" "$token" "$pub_key"
+#push-student-branch "$student_id" "$student_name"
+#python3 unprotect-student-main.py "$student_id"
+
+docker exec "$container" sudo -u git bash -c \
+	"git config --global user.name $student_name && git config --global user.email $student_id$EMAIL_SUFFIX"
+
+docker cp known_hosts "$container:/home/git/.ssh/"
+docker exec "$container" chown git /home/git/.ssh/known_hosts
+
+docker exec -u git "$container" bash -c "
+	mv ~/repo ~/$student_id && cd ~/$student_id &&
+	git remote add origin $GITLAB_CLONE_PREFIX$student_id.git &&
+	git remote add public $BASE_REPO_URL"
+
+api_user="$STATS_USER_PREFIX$student_id"
+python3 create-student-api.py "$api_user" "$token"
+apikey=$(
+sqlite3 "$STATS_DB" <<EOF
+SELECT api_key FROM users WHERE id = "$api_user"
+EOF
+)
+docker exec -u git "$container" bash -c "echo \"[settings]
+api_url = $STATS_URL/api
+api_key = $apikey
+\" >~/.wakatime.cfg"
+
+echo "SSH port: $ssh_port (ssh git@$PUBLIC_HOST -p $ssh_port)"
+echo "Web IDE port: $code_port (http://$PUBLIC_HOST:$code_port)"
+echo "Password: $token"

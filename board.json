@@ -1,0 +1,13 @@
+{
+  "oslab_src": "/opt/oslab",
+  "ostest_src": "/opt/ostest",
+  "users": [
+    {
+      "username": "admin",
+      "password": "inTDPC8oHCxvK2S7TmJv"
+    }
+  ],
+  "teachers": [
+    {"codename": "teacher", "zhname": "教师"}
+  ]
+}

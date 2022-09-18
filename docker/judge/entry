@@ -1,0 +1,20 @@
+#!/bin/bash
+
+/usr/sbin/sshd -eD &
+sleep 1
+
+gl_ip="$(docker inspect "$GITLAB_CONTAINER_NAME" -f '{{.NetworkSettings.IPAddress}}')"
+
+ssh-keyscan -p "$GITLAB_SSH_PORT" "$GITLAB_GLOBAL_HOST" > ~/.ssh/known_hosts
+ssh-keyscan "$gl_ip" >> ~/.ssh/known_hosts
+
+ip="$(docker inspect osjudge -f '{{.NetworkSettings.IPAddress}}')"
+
+docker exec -u git "$GITLAB_CONTAINER_NAME" mkdir -p /opt/stu-hooks
+docker exec -u git "$GITLAB_CONTAINER_NAME" bash -c "echo '#!/bin/bash
+exec ssh -i /opt/git_id_rsa root@$ip env \"GL_ID=\$GL_ID\" \"GL_PROJECT_PATH=\$GL_PROJECT_PATH\" \"GL_PROTOCOL=\$GL_PROTOCOL\" \"GL_REPOSITORY=\$GL_REPOSITORY\" \"GL_USERNAME=\$GL_USERNAME\" \"GIT_DIR=\$GIT_DIR\" REPO_URL=git@$gl_ip:\$GL_PROJECT_PATH /opt/ostest/custom_hooks/post-receive
+' > /opt/stu-hooks/post-receive"
+docker exec -u git "$GITLAB_CONTAINER_NAME" chmod +x /opt/stu-hooks/post-receive
+docker exec -u git "$GITLAB_CONTAINER_NAME" bash -c "ssh-keyscan '$ip' > ~/.ssh/known_hosts"
+
+wait
