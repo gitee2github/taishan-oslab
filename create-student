@@ -69,6 +69,7 @@ api_user="$STATS_USER_PREFIX$student_id"
 python3 create-student-api.py "$api_user" "$token"
 apikey=$(
 sqlite3 "$STATS_DB" <<EOF
+UPDATE users SET share_languages = 1, share_data_max_days = -1 WHERE id = "$api_user";
 SELECT api_key FROM users WHERE id = "$api_user"
 EOF
 )

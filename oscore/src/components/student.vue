@@ -84,10 +84,10 @@
       </el-table>
       <el-divider></el-divider>
       <el-row :style='studentId != null && info != null ? null : { opacity: 0 }'>
-        <el-col v-if='info && info.stats' :span="8">
+        <el-col :span='showStats ? 8 : 0'>
           <div id="stats-pie" style="width: 100%; height: 500px;"></div>
         </el-col>
-        <el-col :span="(info && info.stats) ? 16 : 24">
+        <el-col :span="showStats ? 16 : 24">
           <el-descriptions v-if='stat_secs'>
             <el-descriptions-item label="总开发时间">{{stat_secs}}</el-descriptions-item>
           </el-descriptions>
@@ -237,7 +237,6 @@ export default {
       if (id) {
         const {data} = await this.$http.get(`/json/student/${id}`)
         this.info = data
-        console.log(id, data)
         if (data.opens) {
           for (const row of data.opens) {
             row[0] = new Date(row[0]).toLocaleString()
@@ -248,12 +247,11 @@ export default {
         }
         this.draw()
         this.$http.get(`/json/stats/${id}`).then(r => {
-          console.log('got stats', r)
           if (r.data.error) {
             console.error('stats:', r.data)
             return
           }
-          this.info.stats = r.data
+          this.info = {stats: r.data, ...this.info}
           try {
             this.draw_pie()
           } catch (e) {
@@ -261,7 +259,7 @@ export default {
             try {
               this.stat_secs = humanSecs(this.info.stats.data.total_seconds)
             } catch (e) {}
-            this.info.stats = null
+            this.info = {stats: null, ...this.info}
           }
         })
       } else {
@@ -355,6 +353,7 @@ export default {
           }]
         })
         this.pie.resize()
+        setTimeout(() => this.pie.resize(), 10)
       }
     },
     draw() {
@@ -489,6 +488,9 @@ export default {
     },
     selectedLab() {
       return this.labMap.get(this.selectedLabId)
+    },
+    showStats() {
+      return this.info && this.info.stats
     }
   }
 }
