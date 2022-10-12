@@ -1,0 +1,36 @@
+#!/usr/bin/bash
+
+cd "$(dirname "$0")" || exit 1
+. settings
+
+if [ -z "$5" ]; then
+	echo
+	echo "USAGE: $0 STUDENT_ID HOST_SSH_PORT HOST_CODE_SERVER_PORT STUDENT_TOKEN"
+	echo " e.g.: $0 19060001 13001 23001 mY_paSsw0rd"
+	echo
+	exit 1
+fi
+
+STUDENT_ID=$1
+HOST_SSH_PORT=$2
+HOST_CODE_SERVER_PORT=$3
+STUDENT_TOKEN=$4
+
+echo "Creating docker container for $STUDENT_ID............."
+
+CONTAINER="$CONTAINER_PREFIX$STUDENT_ID"
+
+if docker run -d --restart always \
+	-p $HOST_SSH_PORT:22/tcp \
+	-p $HOST_CODE_SERVER_PORT:10080/tcp \
+	--name "$CONTAINER" --hostname "$CONTAINER" \
+	-v /OSLAB:/OSLAB:ro \
+	-v "$PWD/data/share/$STUDENT_ID":/opt/share \
+	"$DOCKER_IMAGE" "$STUDENT_TOKEN" \
+; then
+	# Ensure the ssh key is generated
+	docker logs -f "$CONTAINER" | sed '/code-server/q'
+else
+    echo "Container exists, starting it."
+	docker start "$CONTAINER"
+fi

@@ -1,0 +1,8 @@
+venv
+.vent
+dep
+/data
+/known_hosts
+/keys
+/vendor
+/build

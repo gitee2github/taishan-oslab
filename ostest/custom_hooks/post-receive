@@ -1,0 +1,134 @@
+#!/bin/bash
+
+# --- Safety check
+if [ -z "$GIT_DIR" ]; then
+	echo "Don't run this script from the command line." >&2
+	echo " (if you want, you could supply GIT_DIR then run" >&2
+	echo "  $0 <ref> <oldrev> <newrev>)" >&2
+	exit 1
+fi
+test_dir="$(realpath -m "$0/../..")"
+
+source $test_dir/utils.sh		# console颜色输出等例程
+
+#####################################################
+#
+# Main
+# 每个提交的分枝循环运行一次
+#
+while read oldrev newrev refname
+do
+
+lab=`echo "$refname" | cut -f3 -d'/'`	#更新的lab，$refname值类似于：refs/heads/lab0
+#如果所提交分枝没有对应评测目录，或者judge.sh不存在，则跳过这个分枝的评测
+
+lab_dir=$test_dir/$lab
+JUDGE=$lab_dir/judge.sh
+
+if [ ! -x "$JUDGE" ]; then
+	continue
+fi
+
+#克隆用户提交的代码
+repo_dir=$test_dir/student/$GL_PROJECT_PATH
+rm -rf $repo_dir
+unset GIT_DIR
+git clone -q $REPO_URL $repo_dir
+
+cd $repo_dir || exit 2
+git checkout $lab
+message="$(git log --format=%B -n 1 HEAD | sed -n '1p')"
+
+if grep -q '\[skip\]' <<< "$message"; then
+	green 'SKIP the judge'
+	continue
+fi
+
+cd - >/dev/null || exit 2
+
+#拟更新的代码库，类似于os2022/20061234，GL_PROJECT_PATH变量由gitlab设置
+user=`echo $GL_PROJECT_PATH | cut -f2 -d '/'`	#通过代码库判断更新的用户，去掉前面的group名
+
+#只判定学生本人提交的代码，避免自动发布代码时触发评测，GL_USERNAME变量由gitlab设置
+if [ "$user" != "$GL_USERNAME" ]; then
+	echo "repo_user $user does not equal to GL_USERNAME $GL_USERNAME. Exit."
+	exit 2
+fi
+
+#if ! test_lab_open "$allow" $always_trig judge.sh ; then
+#	red 'The judge scripts is not ready yet for this task.'
+#	exit 0
+#fi
+
+#准备被测环境：生成一个临时测试工作目录用于评测代码执行
+user_target_dir=$test_dir/target/$user
+mkdir -p $user_target_dir
+template="$lab-`date -Iseconds`-XXXXX"
+target=`mktemp -d -p $user_target_dir $template`
+log_file=$target/`date -Iseconds`.log	#评测日志，反馈给学生
+
+byellow "You are changing the branch: $lab" | tee $log_file
+echo
+
+cd $repo_dir || exit 2
+git checkout $lab
+if [ $? != 0 ]; then
+	red "Deleting branch $lab. No more autotest action."
+	continue
+fi
+
+echo "Autotest: Begin at `date`" | tee -a $log_file
+echo
+#将学生的被测代码拷贝到target目录
+cp -r $repo_dir/* $target
+
+export PATH=/OSLAB/compiler/usr/bin:/OSLAB/gdb/bin:/OSLAB/qemu/usr/local/bin:$PATH
+
+#开始评测，评测脚本返回值为分数
+(cd "$lab_dir" && "$JUDGE" "$target") |& tee -a $log_file
+points=${PIPESTATUS[0]}
+
+#显示得分
+yellow "You got $points (of 100) this time. `date`" | tee -a $log_file
+echo
+
+#本次评分成绩分别记录到score-byuser目录和score-bylab目录下
+score_byuser_dir=$test_dir/score-byuser/$user
+mkdir -p $score_byuser_dir
+score_byuser_file=$score_byuser_dir/$lab
+echo "$points `date -Iseconds`" >> $score_byuser_file
+score_bylab_dir=$test_dir/score-bylab
+mkdir -p $score_bylab_dir
+score_bylab_file=$score_bylab_dir/$lab
+echo "`date -Iseconds` $user $points" >> $score_bylab_file
+
+echo "Autotest: End at `date`" | tee -a $log_file
+
+#将日志push到labXXX-result分枝
+echo
+echo ">>>>>> Collecting autotest results >>>>>>"
+cd $repo_dir
+git checkout $lab-result -- >/dev/null 2>/dev/null
+if [ $? -ne 0 ]; then
+	git switch --orphan $lab-result >/dev/null
+fi
+git pull >/dev/null 2>/dev/null
+mkdir -p $repo_dir/log
+cp $log_file $repo_dir/log
+git add .
+git commit -m "Judgement for $lab at `date -Iseconds`" >/dev/null
+git push origin $lab-result:$lab-result >/dev/null 2>/dev/null
+echo "Please find the autotest log in $lab-result branch."
+echo
+
+# push下一个lab代码，统一用push_next.sh作为脚本文件名
+# PUSHNEXT="$lab_dir/push_next.sh"
+# if [ -x "$PUSHNEXT"  ]; then
+# 	[ "$always_full_mark" = 1 ] && points=100
+# 	(cd "$lab_dir" && "$PUSHNEXT" "$points" "$repo_dir")
+# fi
+
+#清理临时评测目录
+#rm -rf $target
+
+done		# End of while

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 STUDENT_ID"
+	exit 1
+fi
+
+cd "$(dirname "$0")" || exit 2
+. ./settings
+
+student_id="$1"
+
+docker rm "$CONTAINER_PREFIX$student_id" --force &
+
+python3 delete-student-repository.py "$student_id"
+sqlite3 "$STATS_DB" <<EOF
+DELETE FROM users WHERE id = "$STATS_USER_PREFIX$student_id"
+EOF
+
+wait
+
+cp data/students data/students.bak
+sed -i '/^'$student_id' /d' data/students

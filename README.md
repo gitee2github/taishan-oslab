@@ -4,20 +4,28 @@
 This repository will provide the content of a OS lab practice platform based on TaiShan server.
 
 #### 软件架构
-软件架构说明
 
+支持在操作系统教学实践云平台（简称“云平台”）下进行操作系统实验的完整过程：
+
+1) 支持基于云端 Git 的代码管理；
+
+2) 支持基于云端 Web IDE 进行操作内核和用户态实验的代码编辑和开发；
+
+3) 支持基于云端 Web IDE 进行操作内核和用户态实验的调试与运行；
+
+4) 支持云端 Web IDE 进行操作系统内核和用户态实验的测试；
+
+5) 支持云端的操作系统内核和用户态实验的评价；
+
+6) Web IDE 支持常见的语言（C/C++、Rust、Go、Python、Shell、Java、PHP 等）
 
 #### 安装教程
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+见 [docs/4.操作系统教学实践云平台部署文档.docx](docs/4.操作系统教学实践云平台部署文档.docx)
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+见 [docs/3.操作系统教学实践云平台指导文档.docx](docs/3.操作系统教学实践云平台指导文档.docx)
 
 #### 参与贡献
 

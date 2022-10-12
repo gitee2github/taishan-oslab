@@ -1,0 +1,30 @@
+#!/bin/bash
+
+. ./config.ini
+
+export PATH="$PWD:$PATH"
+
+if [ -d vendor ]; then
+  export PYTHONPATH="$PWD/vendor:$PYTHONPATH"
+fi
+
+export DOCKER_IMAGE DOCKER_GLOBAL_HOST \
+  GITLAB_PRIVATE_TOKEN \
+  GITLAB_GROUP_NAME \
+  BASE_REPO_PATH \
+  BASE_REPO_URL CONTAINER_PREFIX \
+  FIRST_SSH_PORT FIRST_CODE_PORT \
+  EMAIL_SUFFIX \
+  GITLAB_SSH_PORT GITLAB_CONTAINER_NAME \
+  GITLAB_GLOBAL_HOST GITLAB_URL \
+  GITLAB_CLONE_PREFIX \
+  STATS_URL STATS_DB STATS_USER_PREFIX
+
+if ! GITLAB_GROUP_ID="$(cat data/gid 2>/dev/null)"; then
+  python3 install/initialize-gl.py
+  GITLAB_GROUP_ID="$(cat data/gid)"
+fi
+
+export GITLAB_GROUP_ID
+
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY
